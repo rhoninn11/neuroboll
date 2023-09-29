@@ -12,7 +12,10 @@ class NeuralNetworkSize:
     def __init__(self) -> None:
         self.gap_layer = 0
         self.gap_neuron = 0
-        self.layer_s = []
+        self.layers = []
+        self.layers_bp = []
+
+        self.layer_num = 0
 
         self.set_spacing_layer()
 
@@ -22,7 +25,12 @@ class NeuralNetworkSize:
     
     def set_layers(self, arr_layer = [4, 6, 5]):
         self.layers_bp = arr_layer
-        self.numr_layers = len(arr_layer)
+        self.layer_num = len(arr_layer)
+
+    def get_neuron_num(self):
+        return sum(self.layers_bp)
+
+
 
 # ----------------------------
 class Neuron:
@@ -38,6 +46,16 @@ class Neuron:
     def batch_vfx(self, batch):
         circle = pglt.shapes.Circle(self.x, self.y, self.radius, color=(50, 225, 30), batch=batch)
         self.circle = circle
+
+    def setup_animation(self, generator, phase_delta):
+        self.phase = next(generator)
+        self.phase_delta = phase_delta
+
+    def update_animation(self):
+        self.circle.x = self.x + np.sin(self.phase) * 10
+        self.circle.y = self.y + np.cos(self.phase) * 10
+        self.phase += self.phase_delta
+
 
 class Layer:
     def my_neurons(self):
@@ -110,40 +128,59 @@ class NNet():
     
     
 
+
+
 # Liczba kolumn i neuronów w każdej kolumnie
-def spaw_newurons():
-    nsz = NeuralNetworkSize()
-    nsz.set_spacing_layer(150, 50)
-    nsz.set_layers([4, 6, 5])
-
-
+def spawn_net(nsz: NeuralNetworkSize):
     layers = []
     neurons = []
     spots = [(200, 300), (600, 300)]
     net1 = NNet(spots[0], nsz)
-    net2 = NNet(spots[0], nsz)
 
-    nets = [net1, net2]
+    nets = [net1]
     layers = []
     neurons = []
     for net in nets:
         layers.extend(net.my_layers())
         neurons.extend(net.my_neurons())
 
-    return neurons
+    return neurons, layers, nets
+
+def config_size():
+    nsz = NeuralNetworkSize()
+    nsz.set_spacing_layer(150, 50)
+    nsz.set_layers([4, 6, 5])
+
+    return nsz
+
+def phase_generator(n):
+    cycle = 2 * np.pi
+    phase = np.linspace(0, cycle, n)[0:-1]
+    while True:
+        for p in phase:
+            yield p
 
 def main():
 
     window = pglt.window.Window(800, 600)
+    nsz = config_size()
 
-    neurons = spaw_newurons()
+    neurons, layers, nets = spawn_net(nsz)
     batch = pglt.graphics.Batch()
+    anim_gen = phase_generator(nsz.get_neuron_num())
+    freq = 1
+    phase_delta = (2 * np.pi * freq)/60
+
     for neuron in neurons:
         neuron.batch_vfx(batch)
+        neuron.setup_animation(anim_gen, phase_delta)
+
+    update_neurons = lambda: [neuron.update_animation() for neuron in neurons]
 
     @window.event
     def on_draw():
         window.clear()
+        update_neurons()
         batch.draw()
 
     pyglet.app.run()
